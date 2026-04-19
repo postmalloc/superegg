@@ -745,4 +745,13 @@ button.danger {
   .filters-time {
     width: 100%;
   }
+
+  .settings-head h1,
+  .settings-section h2 {
+    font-size: 0.95rem;
+  }
+
+  .settings-copy {
+    font-size: 0.88rem;
+  }
 }
