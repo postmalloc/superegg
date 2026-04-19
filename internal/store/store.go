@@ -1031,8 +1031,8 @@ func (s *Store) ListFeed(ctx context.Context, filter FeedFilter) ([]StoryCard, b
 	if !filter.IncludeHidden {
 		where = append(where, `COALESCE(st.is_hidden, 0) = 0`)
 	}
-	if cutoff, ok := timeWindowCutoff(filter.TimeWindow); ok {
-		where = append(where, `s.created_at >= ?`)
+	if cutoff, ok := timeWindowCutoff(filter.TimeWindow, filter.SortBy); ok {
+		where = append(where, timeWindowClause(filter.SortBy))
 		args = append(args, cutoff)
 	}
 
@@ -1276,8 +1276,8 @@ func (s *Store) ListFeedStoryIDs(ctx context.Context, filter FeedFilter) ([]int6
 	if !filter.IncludeHidden {
 		where = append(where, `COALESCE(st.is_hidden, 0) = 0`)
 	}
-	if cutoff, ok := timeWindowCutoff(filter.TimeWindow); ok {
-		where = append(where, `s.created_at >= ?`)
+	if cutoff, ok := timeWindowCutoff(filter.TimeWindow, filter.SortBy); ok {
+		where = append(where, timeWindowClause(filter.SortBy))
 		args = append(args, cutoff)
 	}
 
@@ -2226,6 +2226,15 @@ func parseTime(value string) time.Time {
 		return time.Time{}
 	}
 	return parsed.UTC()
+}
+
+func timeWindowClause(sortBy string) string {
+	switch normalizeFeedSort(sortBy) {
+	case "published":
+		return `COALESCE(NULLIF(s.published_at, ''), s.created_at) >= ?`
+	default:
+		return `s.created_at >= ?`
+	}
 }
 
 func timeWindowCutoff(window string) (string, bool) {
