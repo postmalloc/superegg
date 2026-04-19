@@ -7,7 +7,7 @@
       <a href="/?state=all{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "all"}}active{{end}}">All</a>
       <a href="/?state=read{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "read"}}active{{end}}">Read</a>
       <a href="/?state=saved{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "saved"}}active{{end}}">Saved</a>
-      <details class="source-disclosure" {{if .SourceKey}}open{{end}}>
+      <details class="source-disclosure">
         <summary>
           {{if .SourceKey}}Source: {{.SourceName}}{{else}}Sources ({{len .Sources}}){{end}}
         </summary>

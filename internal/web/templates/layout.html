@@ -47,6 +47,37 @@
 
 {{define "shell_footer"}}
   </main>
+  <script>
+    (function () {
+      var sourceDisclosure = document.querySelector('.source-disclosure');
+      if (!sourceDisclosure) {
+        return;
+      }
+
+      var closeSourceDisclosure = function () {
+        sourceDisclosure.open = false;
+      };
+
+      closeSourceDisclosure();
+
+      document.addEventListener('click', function (event) {
+        if (event.target.closest('.source-disclosure')) {
+          return;
+        }
+        closeSourceDisclosure();
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+          closeSourceDisclosure();
+        }
+      });
+
+      window.addEventListener('pageshow', function () {
+        closeSourceDisclosure();
+      });
+    })();
+  </script>
 </body>
 </html>
 {{end}}
