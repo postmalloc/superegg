@@ -111,6 +111,7 @@ type searchData struct {
 type settingsData struct {
 	Title            string
 	CurrentTab       string
+	FeedSort         string
 	Sources          []store.SourceStatus
 	Jobs             []store.JobStatusCount
 	Problems         []store.ProblemStory
@@ -238,12 +239,18 @@ func (h *handler) home(w http.ResponseWriter, r *http.Request) {
 	sourceKey := r.URL.Query().Get("source")
 	tag := normalizeTagQuery(r.URL.Query().Get("tag"))
 	timeWindow := normalizeTimeWindow(r.URL.Query().Get("window"))
+	feedSort, err := h.store.GetFeedSort(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	stories, hasMore, err := h.store.ListFeed(r.Context(), store.FeedFilter{
 		State:      state,
 		SourceKey:  sourceKey,
 		Tag:        tag,
 		TimeWindow: timeWindow,
+		SortBy:     feedSort,
 		Page:       page,
 		PageSize:   h.pageSize,
 	})
@@ -365,10 +372,16 @@ func (h *handler) settings(w http.ResponseWriter, r *http.Request) {
 	}
 	problemSort := normalizeProblemSort(r.URL.Query().Get("problem_sort"))
 	sortProblemStories(problems, problemSort)
+	feedSort, err := h.store.GetFeedSort(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	h.render(w, "settings", settingsData{
 		Title:            "Settings",
 		CurrentTab:       "settings",
+		FeedSort:         feedSort,
 		Sources:          sources,
 		Jobs:             jobs,
 		Problems:         problems,
@@ -397,6 +410,17 @@ func (h *handler) settingsActions(w http.ResponseWriter, r *http.Request) {
 	}
 	action := strings.TrimPrefix(r.URL.Path, "/settings/")
 	switch action {
+	case "feed-sort":
+		if err := r.ParseForm(); err != nil {
+			redirectSettings(w, r, "", "invalid feed sort form")
+			return
+		}
+		if err := h.store.SetFeedSort(r.Context(), r.FormValue("sort")); err != nil {
+			redirectSettings(w, r, "", err.Error())
+			return
+		}
+		redirectSettings(w, r, "Feed sort updated.", "")
+		return
 	case "add-rss":
 		if err := r.ParseForm(); err != nil {
 			redirectSettings(w, r, "", "invalid form")
@@ -942,12 +966,17 @@ func (h *handler) storyNavigation(ctx context.Context, storyID int64, context st
 		ids []int64
 		err error
 	)
+	feedSort, err := h.store.GetFeedSort(ctx)
+	if err != nil {
+		return "", "", "", err
+	}
 	if context.From == "search" {
 		ids, err = h.store.SearchStoryIDs(ctx, store.SearchFilter{
 			Query:     context.Query,
 			State:     context.State,
 			SourceKey: context.SourceKey,
 			Tag:       context.Tag,
+			SortBy:    feedSort,
 		})
 	} else {
 		ids, err = h.store.ListFeedStoryIDs(ctx, store.FeedFilter{
@@ -955,6 +984,7 @@ func (h *handler) storyNavigation(ctx context.Context, storyID int64, context st
 			SourceKey:  context.SourceKey,
 			Tag:        context.Tag,
 			TimeWindow: context.TimeWindow,
+			SortBy:     feedSort,
 		})
 	}
 	if err != nil {

@@ -17,6 +17,21 @@
 
   <section class="settings-section">
     <div class="settings-section-head">
+      <h2>Feed</h2>
+      <p class="settings-copy">Choose whether the home feed follows publish time or fetch time.</p>
+    </div>
+    <form action="/settings/feed-sort" method="post" class="settings-inline-form">
+      <label for="feed-sort">Sort by</label>
+      <select id="feed-sort" name="sort">
+        <option value="fetched" {{if eq .FeedSort "fetched"}}selected{{end}}>Fetch date</option>
+        <option value="published" {{if eq .FeedSort "published"}}selected{{end}}>Publish date</option>
+      </select>
+      <button type="submit">Save</button>
+    </form>
+  </section>
+
+  <section class="settings-section">
+    <div class="settings-section-head">
       <h2>Sources</h2>
       <p class="settings-copy">Add RSS feeds, check source health, and run maintenance without leaving the page.</p>
     </div>

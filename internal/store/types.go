@@ -142,6 +142,7 @@ type FeedFilter struct {
 	SourceKey     string
 	Tag           string
 	TimeWindow    string
+	SortBy        string
 	IncludeHidden bool
 	Page          int
 	PageSize      int
@@ -152,6 +153,7 @@ type SearchFilter struct {
 	State     string
 	SourceKey string
 	Tag       string
+	SortBy    string
 	Page      int
 	PageSize  int
 }

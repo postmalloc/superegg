@@ -200,6 +200,11 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE sources ADD COLUMN origin TEXT NOT NULL DEFAULT 'config'`,
 		`ALTER TABLE story_state ADD COLUMN is_viewed INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE story_state ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0`,
+		`CREATE TABLE IF NOT EXISTS app_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		)`,
+		`INSERT OR IGNORE INTO app_settings(key, value) VALUES ('feed_sort', 'fetched')`,
 	}
 
 	if _, err := s.db.ExecContext(ctx, migrations[0]); err != nil {
@@ -293,6 +298,63 @@ func (s *Store) shouldSkipMigration(ctx context.Context, queryer queryContexter,
 		return false, err
 	}
 	return hasColumn, nil
+}
+
+func (s *Store) getSetting(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM app_settings WHERE key = ?`, key).Scan(&value)
+	return value, err
+}
+
+func (s *Store) setSetting(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO app_settings(key, value)
+		VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`, key, value)
+	return err
+}
+
+func (s *Store) GetFeedSort(ctx context.Context) (string, error) {
+	value, err := s.getSetting(ctx, "feed_sort")
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "fetched", nil
+		}
+		return "", err
+	}
+	if normalized := normalizeFeedSort(value); normalized != "" {
+		return normalized, nil
+	}
+	return "fetched", nil
+}
+
+func (s *Store) SetFeedSort(ctx context.Context, value string) error {
+	normalized := normalizeFeedSort(value)
+	if normalized == "" {
+		return fmt.Errorf("invalid feed sort %q", value)
+	}
+	return s.setSetting(ctx, "feed_sort", normalized)
+}
+
+func normalizeFeedSort(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "published", "publish", "publish_date", "published_at":
+		return "published"
+	case "fetched", "fetch", "fetch_date", "created", "created_at":
+		return "fetched"
+	default:
+		return ""
+	}
+}
+
+func feedSortOrderClause(sortBy string) string {
+	switch normalizeFeedSort(sortBy) {
+	case "published":
+		return `CASE WHEN s.published_at = '' THEN s.created_at ELSE s.published_at END DESC, s.id DESC`
+	default:
+		return `s.created_at DESC, s.id DESC`
+	}
 }
 
 func (s *Store) SyncSources(ctx context.Context, configs []config.SourceConfig) error {
@@ -998,8 +1060,7 @@ func (s *Store) ListFeed(ctx context.Context, filter FeedFilter) ([]StoryCard, b
 	}
 	query += `
 		ORDER BY
-			s.created_at DESC,
-			s.id DESC
+			` + feedSortOrderClause(filter.SortBy) + `
 		LIMIT ? OFFSET ?
 	`
 	args = append(args, filter.PageSize+1, (filter.Page-1)*filter.PageSize)
@@ -1237,8 +1298,7 @@ func (s *Store) ListFeedStoryIDs(ctx context.Context, filter FeedFilter) ([]int6
 	}
 	query += `
 		ORDER BY
-			s.created_at DESC,
-			s.id DESC
+			` + feedSortOrderClause(filter.SortBy) + `
 	`
 	return s.listStoryIDs(ctx, query, args...)
 }
@@ -1254,6 +1314,7 @@ func (s *Store) SearchStoryIDs(ctx context.Context, filter SearchFilter) ([]int6
 			SourceKey:     filter.SourceKey,
 			Tag:           filter.Tag,
 			IncludeHidden: true,
+			SortBy:        filter.SortBy,
 		})
 	}
 
