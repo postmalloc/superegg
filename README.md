@@ -2,7 +2,7 @@
 
 Superegg is a local-first, single-user news reader built as one Go binary with SQLite, server-rendered HTML, and a persisted `discover -> extract -> summarize` pipeline.
 
-![Superegg feed screenshot](docs/screenshot-feed-compact.png)
+![Superegg feed screenshot](https://raw.githubusercontent.com/postmalloc/superegg/main/docs/screenshot-feed-compact.png)
 
 ## What Works
 
