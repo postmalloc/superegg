@@ -496,6 +496,7 @@ button.danger {
 
 .source-add-form input,
 .source-add-form select,
+.settings-inline-form input,
 .settings-inline-form select {
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--border);

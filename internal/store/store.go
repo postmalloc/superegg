@@ -20,6 +20,11 @@ import (
 )
 
 const (
+	feedSortSettingKey        = "feed_sort"
+	openRouterModelSettingKey = "openrouter_model_id"
+)
+
+const (
 	jobKindDiscover  = "discover"
 	jobKindExtract   = "extract"
 	jobKindSummarize = "summarize"
@@ -318,7 +323,7 @@ func (s *Store) setSetting(ctx context.Context, key, value string) error {
 }
 
 func (s *Store) GetFeedSort(ctx context.Context) (string, error) {
-	value, err := s.getSetting(ctx, "feed_sort")
+	value, err := s.getSetting(ctx, feedSortSettingKey)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "fetched", nil
@@ -336,7 +341,15 @@ func (s *Store) SetFeedSort(ctx context.Context, value string) error {
 	if normalized == "" {
 		return fmt.Errorf("invalid feed sort %q", value)
 	}
-	return s.setSetting(ctx, "feed_sort", normalized)
+	return s.setSetting(ctx, feedSortSettingKey, normalized)
+}
+
+func (s *Store) GetOpenRouterModelID(ctx context.Context) (string, error) {
+	return s.getSetting(ctx, openRouterModelSettingKey)
+}
+
+func (s *Store) SetOpenRouterModelID(ctx context.Context, modelID string) error {
+	return s.setSetting(ctx, openRouterModelSettingKey, strings.TrimSpace(modelID))
 }
 
 func normalizeFeedSort(value string) string {

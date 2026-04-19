@@ -36,6 +36,8 @@ type Dependencies struct {
 	ReindexAll           func(context.Context) error
 	ClearAndRebuild      func(context.Context) error
 	AddRSSSource         func(context.Context, string, string, int, bool) error
+	GetOpenRouterModel   func(context.Context) (string, error)
+	SetOpenRouterModel   func(context.Context, string) error
 }
 
 type handler struct {
@@ -55,6 +57,8 @@ type handler struct {
 	reindexAll           func(context.Context) error
 	clearAndRebuild      func(context.Context) error
 	addRSSSource         func(context.Context, string, string, int, bool) error
+	getOpenRouterModel   func(context.Context) (string, error)
+	setOpenRouterModel   func(context.Context, string) error
 	templates            *template.Template
 }
 
@@ -112,6 +116,7 @@ type settingsData struct {
 	Title            string
 	CurrentTab       string
 	FeedSort         string
+	OpenRouterModel  string
 	Sources          []store.SourceStatus
 	Jobs             []store.JobStatusCount
 	Problems         []store.ProblemStory
@@ -168,6 +173,8 @@ func NewHandler(deps Dependencies) (http.Handler, error) {
 		reindexAll:           deps.ReindexAll,
 		clearAndRebuild:      deps.ClearAndRebuild,
 		addRSSSource:         deps.AddRSSSource,
+		getOpenRouterModel:   deps.GetOpenRouterModel,
+		setOpenRouterModel:   deps.SetOpenRouterModel,
 		templates:            tmpl,
 	}
 
@@ -377,11 +384,20 @@ func (h *handler) settings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	modelID := ""
+	if h.getOpenRouterModel != nil {
+		modelID, err = h.getOpenRouterModel(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 
 	h.render(w, "settings", settingsData{
 		Title:            "Settings",
 		CurrentTab:       "settings",
 		FeedSort:         feedSort,
+		OpenRouterModel:  modelID,
 		Sources:          sources,
 		Jobs:             jobs,
 		Problems:         problems,
@@ -420,6 +436,26 @@ func (h *handler) settingsActions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		redirectSettings(w, r, "Feed sort updated.", "")
+		return
+	case "openrouter-model":
+		if err := r.ParseForm(); err != nil {
+			redirectSettings(w, r, "", "invalid model form")
+			return
+		}
+		if h.setOpenRouterModel == nil {
+			redirectSettings(w, r, "", "model update is unavailable")
+			return
+		}
+		modelID := strings.TrimSpace(r.FormValue("model_id"))
+		if modelID == "" {
+			redirectSettings(w, r, "", "model id is required")
+			return
+		}
+		if err := h.setOpenRouterModel(r.Context(), modelID); err != nil {
+			redirectSettings(w, r, "", err.Error())
+			return
+		}
+		redirectSettings(w, r, "OpenRouter model updated.", "")
 		return
 	case "add-rss":
 		if err := r.ParseForm(); err != nil {

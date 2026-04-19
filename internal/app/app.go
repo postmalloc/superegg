@@ -58,6 +58,12 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		summarizer: summarize.New(cfg.OpenRouter.BaseURL, cfg.OpenRouter.ModelID, cfg.OpenRouter.APIKey),
 		owner:      strconv.FormatInt(time.Now().UnixNano(), 36),
 	}
+	initialModelID, err := instance.resolveOpenRouterModelID(ctx)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	instance.summarizer = summarize.New(cfg.OpenRouter.BaseURL, initialModelID, cfg.OpenRouter.APIKey)
 
 	handler, err := web.NewHandler(web.Dependencies{
 		Store:    db,
@@ -102,6 +108,12 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		AddRSSSource: func(ctx context.Context, name, rawURL string, refreshMinutes int, summarize bool) error {
 			return instance.AddRSSSource(ctx, name, rawURL, refreshMinutes, summarize)
 		},
+		SetOpenRouterModel: func(ctx context.Context, modelID string) error {
+			return instance.SetOpenRouterModelID(ctx, modelID)
+		},
+		GetOpenRouterModel: func(ctx context.Context) (string, error) {
+			return instance.OpenRouterModelID(ctx)
+		},
 	})
 	if err != nil {
 		db.Close()
@@ -118,6 +130,45 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 	return instance, nil
+}
+
+func (a *App) OpenRouterModelID(ctx context.Context) (string, error) {
+	return a.resolveOpenRouterModelID(ctx)
+}
+
+func (a *App) SetOpenRouterModelID(ctx context.Context, modelID string) error {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return fmt.Errorf("model id is required")
+	}
+	return a.store.SetOpenRouterModelID(ctx, modelID)
+}
+
+func (a *App) resolveOpenRouterModelID(ctx context.Context) (string, error) {
+	modelID := strings.TrimSpace(a.cfg.OpenRouter.ModelID)
+	override, err := a.store.GetOpenRouterModelID(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return modelID, nil
+		}
+		return "", err
+	}
+	if strings.TrimSpace(override) != "" {
+		return strings.TrimSpace(override), nil
+	}
+	return modelID, nil
+}
+
+func (a *App) summarizerForContext(ctx context.Context) (*summarize.Client, string, error) {
+	modelID, err := a.resolveOpenRouterModelID(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	client := a.summarizer
+	if client == nil || modelID != client.ModelID() {
+		client = summarize.New(a.cfg.OpenRouter.BaseURL, modelID, a.cfg.OpenRouter.APIKey)
+	}
+	return client, modelID, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -692,14 +743,18 @@ func (a *App) handleSummarize(ctx context.Context, job store.Job) error {
 		article.ContentHash = a.store.BuildContentHash(article.CanonicalURL, article.Title, article.CleanText, article.Excerpt)
 	}
 
-	if existing, err := a.store.GetSummary(ctx, article.ID, article.ContentHash, a.summarizer.ModelID(), summarize.PromptVersion); err == nil {
+	summarizer, modelID, err := a.summarizerForContext(ctx)
+	if err != nil {
+		return err
+	}
+	if existing, err := a.store.GetSummary(ctx, article.ID, article.ContentHash, modelID, summarize.PromptVersion); err == nil {
 		if existing.Status == "ready" {
 			return nil
 		}
 	}
 
 	content := firstNonEmpty(article.CleanText, article.RawText, article.Excerpt, article.Title)
-	result, sumErr := a.summarizer.Summarize(ctx, article.Title, firstNonEmpty(article.CanonicalURL, article.SourceURL), content)
+	result, sumErr := summarizer.Summarize(ctx, article.Title, firstNonEmpty(article.CanonicalURL, article.SourceURL), content)
 	if sumErr != nil {
 		status := "failed"
 		if errors.Is(sumErr, summarize.ErrNotConfigured) {
@@ -708,7 +763,7 @@ func (a *App) handleSummarize(ctx context.Context, job store.Job) error {
 		if _, err := a.store.UpsertSummary(ctx, store.SummaryInput{
 			ArticleID:     article.ID,
 			ContentHash:   article.ContentHash,
-			ModelID:       firstNonEmpty(a.summarizer.ModelID(), "unconfigured"),
+			ModelID:       firstNonEmpty(modelID, "unconfigured"),
 			PromptVersion: summarize.PromptVersion,
 			Status:        status,
 			Error:         sumErr.Error(),
@@ -721,7 +776,7 @@ func (a *App) handleSummarize(ctx context.Context, job store.Job) error {
 	_, err = a.store.UpsertSummary(ctx, store.SummaryInput{
 		ArticleID:     article.ID,
 		ContentHash:   article.ContentHash,
-		ModelID:       a.summarizer.ModelID(),
+		ModelID:       modelID,
 		PromptVersion: summarize.PromptVersion,
 		Abstract:      result.Abstract,
 		Bullets:       result.Bullets,
