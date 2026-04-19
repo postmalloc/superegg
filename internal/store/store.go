@@ -2237,7 +2237,7 @@ func timeWindowClause(sortBy string) string {
 	}
 }
 
-func timeWindowCutoff(window string) (string, bool) {
+func timeWindowCutoff(window string, _ string) (string, bool) {
 	var duration time.Duration
 	switch strings.TrimSpace(window) {
 	case "1h":
