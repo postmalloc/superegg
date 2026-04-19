@@ -63,6 +63,8 @@ button.danger {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .brand a {
@@ -73,8 +75,28 @@ button.danger {
 
 .topnav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  padding-right: 1rem;
+  position: relative;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.topnav::-webkit-scrollbar {
+  display: none;
+}
+
+.topnav::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 1.5rem;
+  background: linear-gradient(to right, rgba(246, 243, 234, 0), rgba(246, 243, 234, 0.95));
 }
 
 .topnav a {
@@ -693,6 +715,11 @@ button.danger {
 }
 
 @media (max-width: 700px) {
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 0.65rem;
+  }
+
   .search-form {
     flex-direction: column;
     align-items: stretch;
