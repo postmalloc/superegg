@@ -56,7 +56,7 @@
       <form action="/settings/reindex" method="post">
         <button type="submit">Reindex Existing Content</button>
       </form>
-      <form action="/settings/clear" method="post">
+      <form action="/settings/clear" method="post" onsubmit="return confirm('Clear the database and re-download all stories? This cannot be undone.');">
         <button type="submit" class="danger">Clear DB And Redownload</button>
       </form>
     </div>
