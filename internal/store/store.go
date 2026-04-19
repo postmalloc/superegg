@@ -219,9 +219,18 @@ func (s *Store) migrate(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("begin migration %d: %w", version, err)
 		}
-		if _, err := tx.ExecContext(ctx, migration); err != nil {
+		shouldRun := true
+		skip, err := s.shouldSkipMigration(ctx, migration)
+		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("apply migration %d: %w", version, err)
+			return fmt.Errorf("inspect migration %d: %w", version, err)
+		}
+		shouldRun = !skip
+		if shouldRun {
+			if _, err := tx.ExecContext(ctx, migration); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("apply migration %d: %w", version, err)
+			}
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations(version) VALUES(?)`, version); err != nil {
 			tx.Rollback()
@@ -233,6 +242,53 @@ func (s *Store) migrate(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (s *Store) columnExists(ctx context.Context, table string, column string) (bool, error) {
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var dataType string
+		var notnull int
+		var dflt sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &dataType, &notnull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func (s *Store) shouldSkipMigration(ctx context.Context, migration string) (bool, error) {
+	fields := strings.Fields(migration)
+	if len(fields) < 6 {
+		return false, nil
+	}
+
+	table := strings.Trim(fields[2], "`\"'")
+	column := strings.Trim(fields[5], "`\"'")
+	if !strings.EqualFold(fields[0], "alter") || !strings.EqualFold(fields[1], "table") ||
+		!strings.EqualFold(fields[3], "add") || !strings.EqualFold(fields[4], "column") {
+		return false, nil
+	}
+
+	hasColumn, err := s.columnExists(ctx, table, column)
+	if err != nil {
+		return false, err
+	}
+	return hasColumn, nil
 }
 
 func (s *Store) SyncSources(ctx context.Context, configs []config.SourceConfig) error {
