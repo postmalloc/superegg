@@ -1,0 +1,174 @@
+{{define "settings"}}
+{{template "shell_header" .}}
+<section class="settings-page">
+  <header class="settings-head">
+    <h1>Settings</h1>
+    <p class="settings-copy">Source administration, maintenance, and pipeline status.</p>
+    {{if .Notice}}<p class="flash flash-notice">{{.Notice}}</p>{{end}}
+    {{if .Error}}<p class="flash flash-error">{{.Error}}</p>{{end}}
+    <div class="chip-grid settings-jobs">
+      {{range .Jobs}}
+      <span class="badge">{{.Kind}} / {{.Status}}: {{.Count}}</span>
+      {{else}}
+      <span class="badge">no jobs</span>
+      {{end}}
+    </div>
+  </header>
+
+  <section class="settings-section">
+    <div class="settings-section-head">
+      <h2>Sources</h2>
+      <p class="settings-copy">Add RSS feeds, check source health, and run maintenance without leaving the page.</p>
+    </div>
+
+    <form action="/settings/add-rss" method="post" class="source-add-form">
+      <input type="url" name="url" placeholder="RSS URL" required>
+      <input type="text" name="name" placeholder="Optional name">
+      <select name="refresh_minutes">
+        <option value="0">Manual</option>
+        <option value="15">15m</option>
+        <option value="30" selected>30m</option>
+        <option value="60">60m</option>
+      </select>
+      <button type="submit">Add RSS Source</button>
+    </form>
+
+    <div class="action-row settings-actions">
+      <form action="/settings/reindex" method="post">
+        <button type="submit">Reindex Existing Content</button>
+      </form>
+      <form action="/settings/clear" method="post">
+        <button type="submit" class="danger">Clear DB And Redownload</button>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table class="status-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Last Run</th>
+            <th>Status</th>
+            <th>Error</th>
+            <th>Refresh</th>
+            <th>Pending</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Sources}}
+          <tr>
+            <td>
+              <form id="source-{{.ID}}" action="/sources/{{.ID}}/update" method="post" class="source-edit-form">
+                <details class="inline-edit">
+                  <summary title="Edit source name">
+                    <span class="editable-summary">
+                      <span class="editable-value">{{.Name}}</span>
+                      <span class="edit-icon" aria-hidden="true">&#9998;</span>
+                    </span>
+                  </summary>
+                  <input type="text" name="name" value="{{.Name}}" class="source-name-input" required>
+                </details>
+                <span class="subtle">{{.URL}}</span>
+              </form>
+            </td>
+            <td>{{if .LastDiscoveryAt.IsZero}}never{{else}}{{formatTime .LastDiscoveryAt}}{{end}}</td>
+            <td>{{if .LastStatus}}{{.LastStatus}}{{else}}idle{{end}}</td>
+            <td class="error-cell">{{.LastError}}</td>
+            <td>
+              <details class="inline-edit inline-edit-compact">
+                <summary title="Edit refresh interval">
+                  <span class="editable-summary">
+                    <span class="editable-value">{{if eq .RefreshMinutes 0}}manual{{else}}{{.RefreshMinutes}}m{{end}}</span>
+                    <span class="edit-icon" aria-hidden="true">&#9998;</span>
+                  </span>
+                </summary>
+                <input form="source-{{.ID}}" type="number" min="0" name="refresh_minutes" value="{{.RefreshMinutes}}" class="interval-input">
+              </details>
+            </td>
+            <td>{{.PendingJobs}}</td>
+            <td>
+              <div class="action-row tight">
+                <button type="submit" form="source-{{.ID}}" class="icon-button" title="Save source changes" aria-label="Save source changes">
+                  <span aria-hidden="true">&#10003;</span>
+                  <span class="sr-only">Save source changes</span>
+                </button>
+                <form action="/sources/{{.ID}}/refresh" method="post">
+                  <button type="submit" class="icon-button" title="Refresh source now" aria-label="Refresh source now">
+                    <span aria-hidden="true">&#8635;</span>
+                    <span class="sr-only">Refresh source now</span>
+                  </button>
+                </form>
+                <form action="/sources/{{.ID}}/delete" method="post" onsubmit="return confirm('Delete this source and its associated stories?');">
+                  <button type="submit" class="icon-button danger" title="Delete source" aria-label="Delete source">
+                    <span aria-hidden="true">&#215;</span>
+                    <span class="sr-only">Delete source</span>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <div class="settings-section-head">
+      <h2>Story Issues</h2>
+      <p class="settings-copy">Partial extractions, failed summaries, and stories that need another pass.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="status-table">
+        <thead>
+          <tr>
+            <th>Story</th>
+            <th>Sources</th>
+            <th><a href="{{.PublishedSortURL}}" class="sort-link">Published {{if eq .ProblemSort "oldest"}}↑{{else}}↓{{end}}</a></th>
+            <th>Extract</th>
+            <th>Summary</th>
+            <th>Error</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Problems}}
+          <tr>
+            <td><a href="/stories/{{.StoryID}}">{{.Title}}</a></td>
+            <td>{{.SourceNames}}</td>
+            <td>{{formatTime .PublishedAt}}</td>
+            <td>{{if .ArticleStatus}}{{.ArticleStatus}}{{else}}discussion-only{{end}}</td>
+            <td>{{.SummaryStatus}}</td>
+            <td class="error-cell">{{.SummaryError}}</td>
+            <td>
+              <div class="action-row tight">
+                {{if .HasArticle}}
+                <form action="/stories/{{.StoryID}}/rerun-extract" method="post">
+                  <button type="submit" class="icon-button" title="Rerun extraction" aria-label="Rerun extraction">
+                    <span aria-hidden="true">&#9881;</span>
+                    <span class="sr-only">Rerun extraction</span>
+                  </button>
+                </form>
+                <form action="/stories/{{.StoryID}}/rerun-summary" method="post">
+                  <button type="submit" class="icon-button" title="Rerun summary" aria-label="Rerun summary">
+                    <span aria-hidden="true">&#8801;</span>
+                    <span class="sr-only">Rerun summary</span>
+                  </button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="7">No active extraction or summary issues.</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
+{{template "shell_footer" .}}
+{{end}}

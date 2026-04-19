@@ -1,0 +1,37 @@
+{{define "shell_header"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand"><a href="/">superegg</a></div>
+      <nav class="topnav">
+        <a href="/" class="{{if isActive .CurrentTab "feed"}}active{{end}}">Feed</a>
+        <a href="/search" class="{{if isActive .CurrentTab "search"}}active{{end}}">Search</a>
+        <a href="/about" class="{{if isActive .CurrentTab "about"}}active{{end}}">About</a>
+        <a href="/settings" class="{{if isActive .CurrentTab "settings"}}active{{end}}">Settings</a>
+      </nav>
+    </div>
+    <div class="topbar-actions">
+      <form action="/refresh" method="post">
+        <button type="submit">Refresh All</button>
+      </form>
+      <form action="/logout" method="post">
+        <button type="submit">Log Out</button>
+      </form>
+    </div>
+  </header>
+  <main class="page">
+{{end}}
+
+{{define "shell_footer"}}
+  </main>
+</body>
+</html>
+{{end}}

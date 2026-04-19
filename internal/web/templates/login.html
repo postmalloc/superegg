@@ -1,0 +1,22 @@
+{{define "login"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <main class="login-panel">
+    <h1>superegg</h1>
+    <form action="/login" method="post" class="login-form">
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" autofocus>
+      <button type="submit">Enter</button>
+    </form>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  </main>
+</body>
+</html>
+{{end}}

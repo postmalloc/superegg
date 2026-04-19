@@ -1,0 +1,55 @@
+server:
+  listen_addr: 127.0.0.1:8080
+  database_path: ./superegg.db
+  session_secret: replace-this-session-secret
+  admin_password_hash: $2a$10$FW4SfyQQmDNiQst7N5s6H.6WyFqcaqHug8czsK05hfPtVFhJgn15O
+  page_size: 30
+
+openrouter:
+  base_url: https://openrouter.ai/api/v1
+  model_id: google/gemma-4-26b-a4b-it
+
+scheduler:
+  poll_seconds: 30
+  workers: 2
+
+sources:
+  - key: hackernews
+    name: Hacker News
+    kind: rss
+    url: https://news.ycombinator.com/rss
+    enabled: true
+    refresh_minutes: 15
+    discussion: true
+
+  - key: lobsters
+    name: Lobsters
+    kind: rss
+    url: https://lobste.rs/rss
+    enabled: true
+    refresh_minutes: 15
+    discussion: true
+
+  - key: simonwillison
+    name: Simon Willison
+    kind: rss
+    url: https://simonwillison.net/atom/everything/
+    enabled: true
+    refresh_minutes: 30
+    discussion: false
+
+  - key: theverge
+    name: The Verge
+    kind: rss
+    url: https://www.theverge.com/rss/index.xml
+    enabled: true
+    refresh_minutes: 30
+    discussion: false
+
+  - key: arstechnica
+    name: Ars Technica
+    kind: rss
+    url: https://feeds.arstechnica.com/arstechnica/index
+    enabled: true
+    refresh_minutes: 30
+    discussion: false

@@ -1,0 +1,41 @@
+{{define "home"}}
+{{template "shell_header" .}}
+<section class="controls">
+  <nav class="filters">
+    <div class="filters-main">
+      <a href="/?state=unread{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "unread"}}active{{end}}">Unread</a>
+      <a href="/?state=all{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "all"}}active{{end}}">All</a>
+      <a href="/?state=read{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "read"}}active{{end}}">Read</a>
+      <a href="/?state=saved{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}{{if .TimeWindow}}&window={{queryEscape .TimeWindow}}{{end}}" class="{{if isActive .State "saved"}}active{{end}}">Saved</a>
+      <details class="source-disclosure" {{if .SourceKey}}open{{end}}>
+        <summary>
+          {{if .SourceKey}}Source: {{.SourceName}}{{else}}Sources ({{len .Sources}}){{end}}
+        </summary>
+        <section class="source-picker">
+          <a href="/?state={{$.State}}{{if $.Tag}}&tag={{queryEscape $.Tag}}{{end}}{{if $.TimeWindow}}&window={{queryEscape $.TimeWindow}}{{end}}" class="tag-chip {{if eq $.SourceKey ""}}active{{end}}">All Sources</a>
+          {{range .Sources}}
+          <a href="/?state={{$.State}}&source={{queryEscape .Key}}{{if $.Tag}}&tag={{queryEscape $.Tag}}{{end}}{{if $.TimeWindow}}&window={{queryEscape $.TimeWindow}}{{end}}" class="tag-chip {{if isActive $.SourceKey .Key}}active{{end}}">{{.Name}}</a>
+          {{end}}
+          <a href="/settings" class="tag-chip">Source Status</a>
+        </section>
+      </details>
+      {{if or .SourceKey .Tag .TimeWindow}}<a href="/?state={{.State}}">Clear Filters</a>{{end}}
+    </div>
+    <div class="filters-time">
+      <a href="/?state={{.State}}{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}" class="{{if eq .TimeWindow ""}}active{{end}}">Any</a>
+      <a href="/?state={{.State}}{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}&window=1h" class="{{if eq .TimeWindow "1h"}}active{{end}}">1h</a>
+      <a href="/?state={{.State}}{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}&window=6h" class="{{if eq .TimeWindow "6h"}}active{{end}}">6h</a>
+      <a href="/?state={{.State}}{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}&window=1d" class="{{if eq .TimeWindow "1d"}}active{{end}}">1d</a>
+      <a href="/?state={{.State}}{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}&window=1w" class="{{if eq .TimeWindow "1w"}}active{{end}}">1w</a>
+    </div>
+  </nav>
+</section>
+
+{{template "story_cards" .}}
+
+<nav class="pager">
+  {{if .PrevPage}}<a href="{{.PrevPage}}">Newer</a>{{end}}
+  {{if .HasMore}}<a href="{{.NextPage}}">Older</a>{{end}}
+</nav>
+{{template "shell_footer" .}}
+{{end}}

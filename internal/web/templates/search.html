@@ -1,0 +1,42 @@
+{{define "search"}}
+{{template "shell_header" .}}
+<section class="controls">
+  <form action="/search" method="get" class="search-form">
+    <input type="search" name="q" value="{{.Query}}" placeholder="Search full text, titles, summaries, tags">
+    {{if .SourceKey}}<input type="hidden" name="source" value="{{.SourceKey}}">{{end}}
+    {{if .Tag}}<input type="hidden" name="tag" value="{{.Tag}}">{{end}}
+    <button type="submit">Search</button>
+  </form>
+
+  <nav class="filters">
+    <a href="/search?q={{queryEscape .Query}}" class="{{if eq .State ""}}active{{end}}">All</a>
+    <a href="/search?q={{queryEscape .Query}}&state=unread{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}" class="{{if isActive .State "unread"}}active{{end}}">Unread</a>
+    <a href="/search?q={{queryEscape .Query}}&state=read{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}" class="{{if isActive .State "read"}}active{{end}}">Read</a>
+    <a href="/search?q={{queryEscape .Query}}&state=saved{{if .SourceKey}}&source={{queryEscape .SourceKey}}{{end}}{{if .Tag}}&tag={{queryEscape .Tag}}{{end}}" class="{{if isActive .State "saved"}}active{{end}}">Saved</a>
+    {{if or .SourceKey .Tag}}<a href="/search?q={{queryEscape .Query}}{{if .State}}&state={{queryEscape .State}}{{end}}">Clear Filters</a>{{end}}
+  </nav>
+
+  <section class="source-panel">
+    {{range .Sources}}
+    <div class="source-chip {{if not .Enabled}}muted{{end}}">
+      <a href="/search?q={{queryEscape $.Query}}{{if $.State}}&state={{queryEscape $.State}}{{end}}&source={{queryEscape .Key}}{{if $.Tag}}&tag={{queryEscape $.Tag}}{{end}}">{{.Name}}</a>
+      <span>{{if .LastDiscoveryAt.IsZero}}never{{else}}{{relativeTime .LastDiscoveryAt}}{{end}}</span>
+    </div>
+    {{end}}
+  </section>
+
+  <section class="tag-panel">
+    {{range .Tags}}
+    <a href="/search?{{if $.State}}state={{queryEscape $.State}}&{{end}}{{if $.SourceKey}}source={{queryEscape $.SourceKey}}&{{end}}tag={{queryEscape .Tag}}" class="tag-chip {{if isActive $.Tag .Tag}}active{{end}}">#{{.Tag}} <span>{{.Count}}</span></a>
+    {{end}}
+  </section>
+</section>
+
+{{template "story_cards" .}}
+
+<nav class="pager">
+  {{if .PrevPage}}<a href="{{.PrevPage}}">Newer</a>{{end}}
+  {{if .HasMore}}<a href="{{.NextPage}}">Older</a>{{end}}
+</nav>
+{{template "shell_footer" .}}
+{{end}}

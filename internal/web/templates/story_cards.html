@@ -1,0 +1,69 @@
+{{define "story_cards"}}
+<section class="feed">
+  {{range .Stories}}
+  <article class="card {{if .IsRead}}read{{else if .IsViewed}}viewed{{end}}">
+    <div class="card-top">
+      <h2><a href="{{storyLink .ID $.StoryQuery}}">{{.PrimaryTitle}}</a></h2>
+      <div class="badges">
+        {{if .IsPartial}}<span class="badge warn">partial</span>{{end}}
+        {{if .IsSaved}}<span class="badge">saved</span>{{end}}
+        {{if .IsHidden}}<span class="badge">hidden</span>{{end}}
+        {{range .References}}
+        <a href="{{sourceFilterLink $.StoryQuery .SourceKey}}" class="badge source">{{.SourceName}}</a>
+        {{end}}
+      </div>
+      <div class="meta">
+        <span>{{relativeTime .PublishedAt}}</span>
+        {{if .ArticleCanonicalURL}}<a href="{{.ArticleCanonicalURL}}" target="_blank" rel="noreferrer">original</a>{{end}}
+      </div>
+    </div>
+
+    <p class="abstract">{{fallbackText .}}</p>
+
+    {{if .Summary.Bullets}}
+    <ul class="bullets">
+      {{range .Summary.Bullets}}
+      <li>{{.}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+
+    {{if .Summary.Tags}}
+    <div class="tags">
+      {{range .Summary.Tags}}
+      <a href="/search?tag={{queryEscape .}}" class="tag-link">#{{.}}</a>
+      {{end}}
+    </div>
+    {{end}}
+
+    <div class="card-actions">
+      <form action="/stories/{{.ID}}/read" method="post">
+        <input type="hidden" name="read" value="{{if .IsRead}}0{{else}}1{{end}}">
+        <button type="submit" class="icon-button" title="{{if .IsRead}}Mark unread{{else}}Mark read{{end}}" aria-label="{{if .IsRead}}Mark unread{{else}}Mark read{{end}}">
+          <span aria-hidden="true">{{if .IsRead}}&#8634;{{else}}&#10003;{{end}}</span>
+          <span class="sr-only">{{if .IsRead}}Mark unread{{else}}Mark read{{end}}</span>
+        </button>
+      </form>
+      <form action="/stories/{{.ID}}/save" method="post">
+        <input type="hidden" name="saved" value="{{if .IsSaved}}0{{else}}1{{end}}">
+        <button type="submit" class="icon-button" title="{{if .IsSaved}}Unsave{{else}}Save{{end}}" aria-label="{{if .IsSaved}}Unsave{{else}}Save{{end}}">
+          <span aria-hidden="true">{{if .IsSaved}}&#9733;{{else}}&#9734;{{end}}</span>
+          <span class="sr-only">{{if .IsSaved}}Unsave{{else}}Save{{end}}</span>
+        </button>
+      </form>
+      <form action="/stories/{{.ID}}/hide" method="post">
+        <input type="hidden" name="hidden" value="{{if .IsHidden}}0{{else}}1{{end}}">
+        <button type="submit" class="icon-button" title="{{if .IsHidden}}Show on home{{else}}Hide from home{{end}}" aria-label="{{if .IsHidden}}Show on home{{else}}Hide from home{{end}}">
+          <span aria-hidden="true">{{if .IsHidden}}&#43;{{else}}&#215;{{end}}</span>
+          <span class="sr-only">{{if .IsHidden}}Show on home{{else}}Hide from home{{end}}</span>
+        </button>
+      </form>
+    </div>
+  </article>
+  {{else}}
+  <div class="empty">
+    <p>No stories yet.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}

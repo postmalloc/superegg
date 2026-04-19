@@ -1,0 +1,61 @@
+{{define "story"}}
+{{template "shell_header" .}}
+<article class="story-page">
+  <header class="story-header">
+    <nav class="story-nav">
+      <a href="{{.BackURL}}">{{.BackLabel}}</a>
+      {{if .PrevURL}}<a href="{{.PrevURL}}">Previous</a>{{end}}
+      {{if .NextURL}}<a href="{{.NextURL}}">Next</a>{{end}}
+    </nav>
+    <h1>{{.Story.PrimaryTitle}}</h1>
+    <div class="meta">
+      {{if .Story.Author}}<span>{{.Story.Author}}</span>{{end}}
+      {{if .Story.PublishedAt}}<span>{{formatTime .Story.PublishedAt}}</span>{{end}}
+      {{if .Story.ArticleCanonicalURL}}<a href="{{.Story.ArticleCanonicalURL}}" target="_blank" rel="noreferrer">Original</a>{{end}}
+    </div>
+    {{if .Story.Summary.Abstract}}
+    <p class="abstract">{{.Story.Summary.Abstract}}</p>
+    {{end}}
+    {{if .Story.Summary.Bullets}}
+    <ul class="bullets">
+      {{range .Story.Summary.Bullets}}
+      <li>{{.}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+    {{if .Story.Summary.Tags}}
+    <div class="tags">
+      {{range .Story.Summary.Tags}}
+      <a href="/search?tag={{queryEscape .}}" class="tag-link">#{{.}}</a>
+      {{end}}
+    </div>
+    {{end}}
+    <div class="meta">
+      <a href="{{.CleanURL}}">Clean</a>
+      <a href="{{.RawURL}}">Raw</a>
+      {{range .Story.References}}
+      {{if .ThreadURL}}<a href="{{.ThreadURL}}" target="_blank" rel="noreferrer">{{.SourceName}} thread</a>{{end}}
+      {{end}}
+    </div>
+  </header>
+
+  <section class="story-body">
+    {{if eq .View "raw"}}
+      {{range .RawParts}}
+      <p>{{.}}</p>
+      {{end}}
+    {{else}}
+      {{range .CleanParts}}
+      <p>{{.}}</p>
+      {{end}}
+    {{end}}
+  </section>
+
+  <nav class="story-nav story-nav-bottom">
+    {{if .PrevURL}}<a href="{{.PrevURL}}">Previous</a>{{end}}
+    <a href="{{.BackURL}}">{{.BackLabel}}</a>
+    {{if .NextURL}}<a href="{{.NextURL}}">Next</a>{{end}}
+  </nav>
+</article>
+{{template "shell_footer" .}}
+{{end}}
