@@ -220,7 +220,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			return fmt.Errorf("begin migration %d: %w", version, err)
 		}
 		shouldRun := true
-		skip, err := s.shouldSkipMigration(ctx, migration)
+		skip, err := s.shouldSkipMigration(ctx, tx, migration)
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("inspect migration %d: %w", version, err)
@@ -244,8 +244,12 @@ func (s *Store) migrate(ctx context.Context) error {
 	return nil
 }
 
-func (s *Store) columnExists(ctx context.Context, table string, column string) (bool, error) {
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+type queryContexter interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
+func (s *Store) columnExists(ctx context.Context, queryer queryContexter, table string, column string) (bool, error) {
+	rows, err := queryer.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return false, err
 	}
@@ -271,7 +275,7 @@ func (s *Store) columnExists(ctx context.Context, table string, column string) (
 	return false, nil
 }
 
-func (s *Store) shouldSkipMigration(ctx context.Context, migration string) (bool, error) {
+func (s *Store) shouldSkipMigration(ctx context.Context, queryer queryContexter, migration string) (bool, error) {
 	fields := strings.Fields(migration)
 	if len(fields) < 6 {
 		return false, nil
@@ -284,7 +288,7 @@ func (s *Store) shouldSkipMigration(ctx context.Context, migration string) (bool
 		return false, nil
 	}
 
-	hasColumn, err := s.columnExists(ctx, table, column)
+	hasColumn, err := s.columnExists(ctx, queryer, table, column)
 	if err != nil {
 		return false, err
 	}
