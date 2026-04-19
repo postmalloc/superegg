@@ -58,7 +58,7 @@ func TestAddRSSSourcePersistsUserSource(t *testing.T) {
 	}
 	defer app.Close()
 
-	if err := app.AddRSSSource(context.Background(), "", feed.URL+"/rss", 30); err != nil {
+	if err := app.AddRSSSource(context.Background(), "", feed.URL+"/rss", 30, true); err != nil {
 		t.Fatal(err)
 	}
 

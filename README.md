@@ -13,6 +13,7 @@ Superegg is a local-first, single-user news reader built as one Go binary with S
 - Separate `story`, `article`, and `thread` records.
 - Deduping by canonical article URL while preserving source/thread references.
 - OpenRouter-based summaries cached by `content_hash + model_id + prompt_version`.
+- Per-feed summary controls (including added RSS feeds) to enable/disable summarization source-by-source.
 - Dense masonry feed, story detail page, manual read/save actions, and manual refresh.
 - Optional per-source background refresh intervals.
 

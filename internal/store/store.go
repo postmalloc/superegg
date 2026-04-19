@@ -69,6 +69,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			enabled INTEGER NOT NULL DEFAULT 1,
 			refresh_minutes INTEGER NOT NULL DEFAULT 0,
 			discussion INTEGER NOT NULL DEFAULT 0,
+			summarize INTEGER NOT NULL DEFAULT 1,
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		)`,
@@ -205,6 +206,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			value TEXT NOT NULL
 		)`,
 		`INSERT OR IGNORE INTO app_settings(key, value) VALUES ('feed_sort', 'fetched')`,
+		`ALTER TABLE sources ADD COLUMN summarize INTEGER NOT NULL DEFAULT 1`,
 	}
 
 	if _, err := s.db.ExecContext(ctx, migrations[0]); err != nil {
@@ -369,8 +371,8 @@ func (s *Store) SyncSources(ctx context.Context, configs []config.SourceConfig) 
 	for _, src := range configs {
 		seen[src.Key] = struct{}{}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO sources(key, name, kind, url, enabled, refresh_minutes, discussion, origin, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, 'config', ?, ?)
+			INSERT INTO sources(key, name, kind, url, enabled, refresh_minutes, discussion, summarize, origin, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'config', ?, ?)
 			ON CONFLICT(key) DO UPDATE SET
 				name = CASE
 					WHEN sources.origin = 'user' THEN sources.name
@@ -389,12 +391,16 @@ func (s *Store) SyncSources(ctx context.Context, configs []config.SourceConfig) 
 					ELSE excluded.refresh_minutes
 				END,
 				discussion = excluded.discussion,
+				summarize = CASE
+					WHEN sources.origin IN ('user', 'removed') THEN sources.summarize
+					ELSE excluded.summarize
+				END,
 				origin = CASE
 					WHEN sources.origin IN ('user', 'removed') THEN sources.origin
 					ELSE excluded.origin
 				END,
 				updated_at = excluded.updated_at
-		`, src.Key, src.Name, src.Kind, src.URL, boolInt(src.Enabled), src.RefreshMinutes, boolInt(src.Discussion), now, now); err != nil {
+		`, src.Key, src.Name, src.Kind, src.URL, boolInt(src.Enabled), src.RefreshMinutes, boolInt(src.Discussion), boolInt(src.SummarizeEnabled()), now, now); err != nil {
 			return fmt.Errorf("sync source %q: %w", src.Key, err)
 		}
 	}
@@ -424,7 +430,7 @@ func (s *Store) SyncSources(ctx context.Context, configs []config.SourceConfig) 
 
 func (s *Store) ListSources(ctx context.Context) ([]Source, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, key, name, kind, url, enabled, refresh_minutes, discussion, origin, created_at, updated_at
+		SELECT id, key, name, kind, url, enabled, refresh_minutes, discussion, summarize, origin, created_at, updated_at
 		FROM sources
 		WHERE origin != 'removed'
 		ORDER BY name
@@ -447,7 +453,7 @@ func (s *Store) ListSources(ctx context.Context) ([]Source, error) {
 
 func (s *Store) GetSource(ctx context.Context, id int64) (Source, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, key, name, kind, url, enabled, refresh_minutes, discussion, origin, created_at, updated_at
+		SELECT id, key, name, kind, url, enabled, refresh_minutes, discussion, summarize, origin, created_at, updated_at
 		FROM sources
 		WHERE id = ? AND origin != 'removed'
 	`, id)
@@ -456,7 +462,7 @@ func (s *Store) GetSource(ctx context.Context, id int64) (Source, error) {
 
 func (s *Store) GetSourceByURL(ctx context.Context, rawURL string) (Source, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, key, name, kind, url, enabled, refresh_minutes, discussion, origin, created_at, updated_at
+		SELECT id, key, name, kind, url, enabled, refresh_minutes, discussion, summarize, origin, created_at, updated_at
 		FROM sources
 		WHERE url = ? AND origin != 'removed'
 	`, strings.TrimSpace(rawURL))
@@ -473,16 +479,16 @@ func (s *Store) CreateSource(ctx context.Context, in SourceInput) (Source, error
 	now := nowString()
 	origin := defaultString(in.Origin, "user")
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO sources(key, name, kind, url, enabled, refresh_minutes, discussion, origin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, strings.TrimSpace(in.Key), strings.TrimSpace(in.Name), strings.TrimSpace(in.Kind), strings.TrimSpace(in.URL), boolInt(in.Enabled), in.RefreshMinutes, boolInt(in.Discussion), origin, now, now)
+		INSERT INTO sources(key, name, kind, url, enabled, refresh_minutes, discussion, summarize, origin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, strings.TrimSpace(in.Key), strings.TrimSpace(in.Name), strings.TrimSpace(in.Kind), strings.TrimSpace(in.URL), boolInt(in.Enabled), in.RefreshMinutes, boolInt(in.Discussion), boolInt(in.Summarize), origin, now, now)
 	if err != nil {
 		return Source{}, err
 	}
 	return s.GetSourceByURL(ctx, in.URL)
 }
 
-func (s *Store) UpdateSource(ctx context.Context, id int64, name string, refreshMinutes int) error {
+func (s *Store) UpdateSource(ctx context.Context, id int64, name string, refreshMinutes int, summarize bool) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return errors.New("source name is required")
@@ -493,9 +499,9 @@ func (s *Store) UpdateSource(ctx context.Context, id int64, name string, refresh
 
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE sources
-		SET name = ?, refresh_minutes = ?, origin = CASE WHEN origin = 'removed' THEN origin ELSE 'user' END, updated_at = ?
+		SET name = ?, refresh_minutes = ?, summarize = ?, origin = CASE WHEN origin = 'removed' THEN origin ELSE 'user' END, updated_at = ?
 		WHERE id = ? AND origin != 'removed'
-	`, name, refreshMinutes, nowString(), id)
+	`, name, refreshMinutes, boolInt(summarize), nowString(), id)
 	if err != nil {
 		return err
 	}
@@ -1491,7 +1497,7 @@ func (s *Store) attachReferences(ctx context.Context, cards []*StoryCard) error 
 func (s *Store) ListSourceStatus(ctx context.Context) ([]SourceStatus, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
-			src.id, src.key, src.name, src.kind, src.url, src.enabled, src.refresh_minutes, src.discussion, src.origin, src.created_at, src.updated_at,
+			src.id, src.key, src.name, src.kind, src.url, src.enabled, src.refresh_minutes, src.discussion, src.summarize, src.origin, src.created_at, src.updated_at,
 			COALESCE((
 				SELECT COALESCE(NULLIF(dr.finished_at, ''), dr.started_at)
 				FROM discovery_runs dr
@@ -1530,14 +1536,15 @@ func (s *Store) ListSourceStatus(ctx context.Context) ([]SourceStatus, error) {
 	var out []SourceStatus
 	for rows.Next() {
 		var item SourceStatus
-		var enabled, discussion int
+		var enabled, discussion, summarize int
 		var origin string
 		var createdAt, updatedAt, lastAt string
-		if err := rows.Scan(&item.ID, &item.Key, &item.Name, &item.Kind, &item.URL, &enabled, &item.RefreshMinutes, &discussion, &origin, &createdAt, &updatedAt, &lastAt, &item.LastStatus, &item.LastError, &item.PendingJobs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Key, &item.Name, &item.Kind, &item.URL, &enabled, &item.RefreshMinutes, &discussion, &summarize, &origin, &createdAt, &updatedAt, &lastAt, &item.LastStatus, &item.LastError, &item.PendingJobs); err != nil {
 			return nil, err
 		}
 		item.Enabled = enabled == 1
 		item.Discussion = discussion == 1
+		item.Summarize = summarize == 1
 		item.Origin = origin
 		item.CreatedAt = parseTime(createdAt)
 		item.UpdatedAt = parseTime(updatedAt)
@@ -1660,7 +1667,14 @@ func (s *Store) ListProblemStories(ctx context.Context, limit int) ([]ProblemSto
 		FROM stories s
 		LEFT JOIN articles a ON a.id = s.article_id
 		WHERE COALESCE(a.extraction_status, '') != 'ready'
-		   OR s.summary_status != 'ready'
+		   OR (s.summary_status != 'ready' AND EXISTS (
+				SELECT 1
+				FROM story_sources ss
+				JOIN sources so ON so.id = ss.source_id
+				WHERE ss.story_id = s.id
+				 AND so.summarize = 1
+				 AND so.origin != 'removed'
+			))
 		ORDER BY
 			CASE WHEN s.published_at = '' THEN s.updated_at ELSE s.published_at END DESC,
 			s.id DESC
@@ -1685,6 +1699,25 @@ func (s *Store) ListProblemStories(ctx context.Context, limit int) ([]ProblemSto
 		out = append(out, item)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) StoryHasSummarizableSource(ctx context.Context, storyID int64) (bool, error) {
+	if storyID <= 0 {
+		return false, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT 1
+		FROM story_sources ss
+		JOIN sources so ON so.id = ss.source_id
+		WHERE ss.story_id = ? AND so.summarize = 1 AND so.origin != 'removed'
+		LIMIT 1
+	`, storyID)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	return rows.Next(), rows.Err()
 }
 
 func (s *Store) GetStoryMaintenanceTargets(ctx context.Context, storyID int64) (StoryMaintenanceTargets, error) {
@@ -1902,6 +1935,14 @@ func (s *Store) ListSummaryBacklog(ctx context.Context, limit int) ([]SummaryBac
 		)
 		WHERE s.article_id != 0
 		  AND sm.id IS NULL
+		  AND EXISTS (
+				SELECT 1
+				FROM story_sources ss
+				JOIN sources so ON so.id = ss.source_id
+				WHERE ss.story_id = s.id
+				  AND so.summarize = 1
+				  AND so.origin != 'removed'
+		  )
 		ORDER BY
 			CASE WHEN s.published_at = '' THEN s.updated_at ELSE s.published_at END DESC,
 			s.id DESC
@@ -2009,13 +2050,15 @@ func scanDiscoveredItem(row interface{ Scan(dest ...any) error }) (DiscoveredIte
 func scanSource(row interface{ Scan(dest ...any) error }) (Source, error) {
 	var src Source
 	var enabled, discussion int
+	var summarize int
 	var createdAt, updatedAt string
-	err := row.Scan(&src.ID, &src.Key, &src.Name, &src.Kind, &src.URL, &enabled, &src.RefreshMinutes, &discussion, &src.Origin, &createdAt, &updatedAt)
+	err := row.Scan(&src.ID, &src.Key, &src.Name, &src.Kind, &src.URL, &enabled, &src.RefreshMinutes, &discussion, &summarize, &src.Origin, &createdAt, &updatedAt)
 	if err != nil {
 		return Source{}, err
 	}
 	src.Enabled = enabled == 1
 	src.Discussion = discussion == 1
+	src.Summarize = summarize == 1
 	src.CreatedAt = parseTime(createdAt)
 	src.UpdatedAt = parseTime(updatedAt)
 	return src, nil

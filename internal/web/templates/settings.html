@@ -45,6 +45,10 @@
         <option value="30" selected>30m</option>
         <option value="60">60m</option>
       </select>
+      <label class="summarize-option">
+        <input type="checkbox" name="summarize" value="1" checked>
+        Summarize
+      </label>
       <button type="submit">Add RSS Source</button>
     </form>
 
@@ -66,6 +70,7 @@
             <th>Status</th>
             <th>Error</th>
             <th>Refresh</th>
+            <th>Summarize</th>
             <th>Pending</th>
             <th>Actions</th>
           </tr>
@@ -99,6 +104,20 @@
                   </span>
                 </summary>
                 <input form="source-{{.ID}}" type="number" min="0" name="refresh_minutes" value="{{.RefreshMinutes}}" class="interval-input">
+              </details>
+            </td>
+            <td>
+              <details class="inline-edit inline-edit-compact">
+                <summary title="Edit summarize setting">
+                  <span class="editable-summary">
+                    <span class="editable-value">{{if .Summarize}}on{{else}}off{{end}}</span>
+                    <span class="edit-icon" aria-hidden="true">&#9998;</span>
+                  </span>
+                </summary>
+                <label class="summarize-toggle">
+                  <input type="hidden" name="summarize" value="0" form="source-{{.ID}}">
+                  <input form="source-{{.ID}}" type="checkbox" name="summarize" value="1" {{if .Summarize}}checked{{end}}> summarize
+                </label>
               </details>
             </td>
             <td>{{.PendingJobs}}</td>

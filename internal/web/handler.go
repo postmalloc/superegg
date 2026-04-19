@@ -31,11 +31,11 @@ type Dependencies struct {
 	SetHidden            func(context.Context, int64, bool) error
 	RerunStoryExtraction func(context.Context, int64) error
 	RerunStorySummary    func(context.Context, int64) error
-	UpdateSource         func(context.Context, int64, string, int) error
+	UpdateSource         func(context.Context, int64, string, int, bool) error
 	DeleteSource         func(context.Context, int64) error
 	ReindexAll           func(context.Context) error
 	ClearAndRebuild      func(context.Context) error
-	AddRSSSource         func(context.Context, string, string, int) error
+	AddRSSSource         func(context.Context, string, string, int, bool) error
 }
 
 type handler struct {
@@ -50,11 +50,11 @@ type handler struct {
 	setHidden            func(context.Context, int64, bool) error
 	rerunStoryExtraction func(context.Context, int64) error
 	rerunStorySummary    func(context.Context, int64) error
-	updateSource         func(context.Context, int64, string, int) error
+	updateSource         func(context.Context, int64, string, int, bool) error
 	deleteSource         func(context.Context, int64) error
 	reindexAll           func(context.Context) error
 	clearAndRebuild      func(context.Context) error
-	addRSSSource         func(context.Context, string, string, int) error
+	addRSSSource         func(context.Context, string, string, int, bool) error
 	templates            *template.Template
 }
 
@@ -435,7 +435,8 @@ func (h *handler) settingsActions(w http.ResponseWriter, r *http.Request) {
 			}
 			refreshMinutes = value
 		}
-		if err := h.addRSSSource(r.Context(), r.FormValue("name"), r.FormValue("url"), refreshMinutes); err != nil {
+		summarize := parseFormBool(r.Form, "summarize")
+		if err := h.addRSSSource(r.Context(), r.FormValue("name"), r.FormValue("url"), refreshMinutes, summarize); err != nil {
 			redirectSettings(w, r, "", err.Error())
 			return
 		}
@@ -621,7 +622,8 @@ func (h *handler) sources(w http.ResponseWriter, r *http.Request) {
 			redirectSettings(w, r, "", "refresh interval must be a number")
 			return
 		}
-		if err := h.updateSource(r.Context(), id, r.FormValue("name"), refreshMinutes); err != nil {
+		summarize := parseFormBool(r.Form, "summarize")
+		if err := h.updateSource(r.Context(), id, r.FormValue("name"), refreshMinutes, summarize); err != nil {
 			redirectSettings(w, r, "", err.Error())
 			return
 		}
@@ -832,6 +834,16 @@ func normalizeTimeWindow(value string) string {
 	default:
 		return ""
 	}
+}
+
+func parseFormBool(values neturl.Values, key string) bool {
+	for _, value := range values[key] {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "1", "on", "true", "yes":
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeProblemSort(value string) string {

@@ -11,6 +11,7 @@ type Source struct {
 	Enabled        bool
 	RefreshMinutes int
 	Discussion     bool
+	Summarize      bool
 	Origin         string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -240,6 +241,7 @@ type SourceInput struct {
 	Enabled        bool
 	RefreshMinutes int
 	Discussion     bool
+	Summarize      bool
 	Origin         string
 }
 

@@ -21,6 +21,7 @@ sources:
     enabled: true
     refresh_minutes: 15
     discussion: true
+    summarize: true
 
   - key: lobsters
     name: Lobsters
@@ -29,6 +30,7 @@ sources:
     enabled: true
     refresh_minutes: 15
     discussion: true
+    summarize: true
 
   - key: simonwillison
     name: Simon Willison
@@ -37,6 +39,7 @@ sources:
     enabled: true
     refresh_minutes: 30
     discussion: false
+    summarize: true
 
   - key: theverge
     name: The Verge
@@ -45,6 +48,7 @@ sources:
     enabled: true
     refresh_minutes: 30
     discussion: false
+    summarize: true
 
   - key: arstechnica
     name: Ars Technica
@@ -53,3 +57,4 @@ sources:
     enabled: true
     refresh_minutes: 30
     discussion: false
+    summarize: true

@@ -43,6 +43,14 @@ type SourceConfig struct {
 	Enabled        bool   `yaml:"enabled"`
 	RefreshMinutes int    `yaml:"refresh_minutes"`
 	Discussion     bool   `yaml:"discussion"`
+	Summarize      *bool  `yaml:"summarize"`
+}
+
+func (c SourceConfig) SummarizeEnabled() bool {
+	if c.Summarize == nil {
+		return true
+	}
+	return *c.Summarize
 }
 
 func Load(path string) (*Config, error) {

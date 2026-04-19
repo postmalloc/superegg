@@ -87,8 +87,8 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		RerunStorySummary: func(ctx context.Context, storyID int64) error {
 			return instance.RerunStorySummary(ctx, storyID)
 		},
-		UpdateSource: func(ctx context.Context, sourceID int64, name string, refreshMinutes int) error {
-			return instance.UpdateSource(ctx, sourceID, name, refreshMinutes)
+		UpdateSource: func(ctx context.Context, sourceID int64, name string, refreshMinutes int, summarize bool) error {
+			return instance.UpdateSource(ctx, sourceID, name, refreshMinutes, summarize)
 		},
 		DeleteSource: func(ctx context.Context, sourceID int64) error {
 			return instance.DeleteSource(ctx, sourceID)
@@ -99,8 +99,8 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		ClearAndRebuild: func(ctx context.Context) error {
 			return instance.ClearAndRebuild(ctx)
 		},
-		AddRSSSource: func(ctx context.Context, name, rawURL string, refreshMinutes int) error {
-			return instance.AddRSSSource(ctx, name, rawURL, refreshMinutes)
+		AddRSSSource: func(ctx context.Context, name, rawURL string, refreshMinutes int, summarize bool) error {
+			return instance.AddRSSSource(ctx, name, rawURL, refreshMinutes, summarize)
 		},
 	})
 	if err != nil {
@@ -272,7 +272,7 @@ func (a *App) ClearAndRebuild(ctx context.Context) error {
 	return a.EnqueueAllRefreshes(ctx)
 }
 
-func (a *App) AddRSSSource(ctx context.Context, name, rawURL string, refreshMinutes int) error {
+func (a *App) AddRSSSource(ctx context.Context, name, rawURL string, refreshMinutes int, summarize bool) error {
 	rawURL = strings.TrimSpace(rawURL)
 	name = strings.TrimSpace(name)
 	if rawURL == "" {
@@ -310,6 +310,7 @@ func (a *App) AddRSSSource(ctx context.Context, name, rawURL string, refreshMinu
 		URL:            probe.URL,
 		Enabled:        true,
 		RefreshMinutes: refreshMinutes,
+		Summarize:      summarize,
 		Discussion:     false,
 		Origin:         "user",
 	})
@@ -319,8 +320,8 @@ func (a *App) AddRSSSource(ctx context.Context, name, rawURL string, refreshMinu
 	return a.RefreshSource(ctx, source.ID)
 }
 
-func (a *App) UpdateSource(ctx context.Context, sourceID int64, name string, refreshMinutes int) error {
-	return a.store.UpdateSource(ctx, sourceID, name, refreshMinutes)
+func (a *App) UpdateSource(ctx context.Context, sourceID int64, name string, refreshMinutes int, summarize bool) error {
+	return a.store.UpdateSource(ctx, sourceID, name, refreshMinutes, summarize)
 }
 
 func (a *App) DeleteSource(ctx context.Context, sourceID int64) error {
@@ -616,13 +617,15 @@ func (a *App) handleExtract(ctx context.Context, job store.Job) error {
 		if err != nil {
 			return err
 		}
-		if err := a.store.EnqueueJob(ctx, store.JobInput{
-			Kind:      "summarize",
-			ArticleID: article.ID,
-			StoryID:   story.ID,
-			RunAfter:  time.Now().UTC(),
-		}); err != nil {
-			return err
+		if source.Summarize {
+			if err := a.store.EnqueueJob(ctx, store.JobInput{
+				Kind:      "summarize",
+				ArticleID: article.ID,
+				StoryID:   story.ID,
+				RunAfter:  time.Now().UTC(),
+			}); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -657,15 +660,29 @@ func (a *App) handleExtract(ctx context.Context, job store.Job) error {
 		return err
 	}
 
-	return a.store.EnqueueJob(ctx, store.JobInput{
-		Kind:      "summarize",
-		ArticleID: article.ID,
-		StoryID:   story.ID,
-		RunAfter:  time.Now().UTC(),
-	})
+	if source.Summarize {
+		return a.store.EnqueueJob(ctx, store.JobInput{
+			Kind:      "summarize",
+			ArticleID: article.ID,
+			StoryID:   story.ID,
+			RunAfter:  time.Now().UTC(),
+		})
+	}
+	return nil
 }
 
 func (a *App) handleSummarize(ctx context.Context, job store.Job) error {
+	if job.StoryID == 0 {
+		return a.store.UpdateStorySummaryStatus(ctx, job.ArticleID, "disabled")
+	}
+	summarizable, err := a.store.StoryHasSummarizableSource(ctx, job.StoryID)
+	if err != nil {
+		return err
+	}
+	if !summarizable {
+		return a.store.UpdateStorySummaryStatus(ctx, job.ArticleID, "disabled")
+	}
+
 	article, err := a.store.GetArticle(ctx, job.ArticleID)
 	if err != nil {
 		return err
