@@ -10,7 +10,8 @@
     <h1>{{.Story.PrimaryTitle}}</h1>
     <div class="meta">
       {{if .Story.Author}}<span>{{.Story.Author}}</span>{{end}}
-      {{if .Story.PublishedAt}}<span>{{formatTime .Story.PublishedAt}}</span>{{end}}
+      <span>fetched {{relativeTime .Story.CreatedAt}}</span>
+      {{if .Story.PublishedAt}}<span>published {{relativeTime .Story.PublishedAt}}</span>{{else}}<span>published n/a</span>{{end}}
       {{if .Story.ArticleCanonicalURL}}<a href="{{.Story.ArticleCanonicalURL}}" target="_blank" rel="noreferrer">Original</a>{{end}}
     </div>
     {{if .Story.Summary.Abstract}}

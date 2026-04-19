@@ -910,7 +910,7 @@ func (s *Store) ListFeed(ctx context.Context, filter FeedFilter) ([]StoryCard, b
 		where = append(where, `COALESCE(st.is_hidden, 0) = 0`)
 	}
 	if cutoff, ok := timeWindowCutoff(filter.TimeWindow); ok {
-		where = append(where, `CASE WHEN s.published_at = '' THEN s.updated_at ELSE s.published_at END >= ?`)
+		where = append(where, `s.created_at >= ?`)
 		args = append(args, cutoff)
 	}
 
@@ -938,7 +938,7 @@ func (s *Store) ListFeed(ctx context.Context, filter FeedFilter) ([]StoryCard, b
 	}
 	query += `
 		ORDER BY
-			CASE WHEN s.published_at = '' THEN s.updated_at ELSE s.published_at END DESC,
+			s.created_at DESC,
 			s.id DESC
 		LIMIT ? OFFSET ?
 	`
@@ -1156,7 +1156,7 @@ func (s *Store) ListFeedStoryIDs(ctx context.Context, filter FeedFilter) ([]int6
 		where = append(where, `COALESCE(st.is_hidden, 0) = 0`)
 	}
 	if cutoff, ok := timeWindowCutoff(filter.TimeWindow); ok {
-		where = append(where, `CASE WHEN s.published_at = '' THEN s.updated_at ELSE s.published_at END >= ?`)
+		where = append(where, `s.created_at >= ?`)
 		args = append(args, cutoff)
 	}
 
@@ -1177,7 +1177,7 @@ func (s *Store) ListFeedStoryIDs(ctx context.Context, filter FeedFilter) ([]int6
 	}
 	query += `
 		ORDER BY
-			CASE WHEN s.published_at = '' THEN s.updated_at ELSE s.published_at END DESC,
+			s.created_at DESC,
 			s.id DESC
 	`
 	return s.listStoryIDs(ctx, query, args...)

@@ -13,7 +13,8 @@
         {{end}}
       </div>
       <div class="meta">
-        <span>{{relativeTime .PublishedAt}}</span>
+        <span>fetched {{relativeTime .CreatedAt}}</span>
+        {{if .PublishedAt}}<span>published {{relativeTime .PublishedAt}}</span>{{else}}<span>published n/a</span>{{end}}
         {{if .ArticleCanonicalURL}}<a href="{{.ArticleCanonicalURL}}" target="_blank" rel="noreferrer">original</a>{{end}}
       </div>
     </div>

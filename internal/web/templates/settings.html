@@ -146,13 +146,24 @@
                 {{if .HasArticle}}
                 <form action="/stories/{{.StoryID}}/rerun-extract" method="post">
                   <button type="submit" class="icon-button" title="Rerun extraction" aria-label="Rerun extraction">
-                    <span aria-hidden="true">&#9881;</span>
+                    <svg class="icon-svg" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M5 1.75h4.75L13 5v8.25a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-10.5a1 1 0 0 1 1-1z"/>
+                      <path d="M9.75 1.75V5H13"/>
+                      <path d="M8 7v4.25"/>
+                      <path d="M6.5 9.75 8 11.25l1.5-1.5"/>
+                    </svg>
                     <span class="sr-only">Rerun extraction</span>
                   </button>
                 </form>
                 <form action="/stories/{{.StoryID}}/rerun-summary" method="post">
                   <button type="submit" class="icon-button" title="Rerun summary" aria-label="Rerun summary">
-                    <span aria-hidden="true">&#8801;</span>
+                    <svg class="icon-svg" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M5 1.75h4.75L13 5v8.25a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-10.5a1 1 0 0 1 1-1z"/>
+                      <path d="M9.75 1.75V5H13"/>
+                      <path d="M6.25 7h3.5"/>
+                      <path d="M6.25 9h3.5"/>
+                      <path d="M6.25 11h2.25"/>
+                    </svg>
                     <span class="sr-only">Rerun summary</span>
                   </button>
                 </form>
